@@ -33,3 +33,10 @@
     text-align: center;
     background-color: rgb(237, 237, 237);
 }
+
+body{
+  background-image: url("../assets/sky.png");
+
+  background-repeat: no-repeat; 
+  background-size:cover;
+}
