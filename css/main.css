@@ -1,42 +1,43 @@
 .balloon {
-    width: 80px;
-    height: 110px;
-    border-radius: 50%;
-    position: absolute;
-    bottom:0;
-  }
-  
-  .balloon:before {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 47%;
-    bottom: -40px;
-    width: 2px;
-    height: 40px;
-    background-color: black;
-}
-.ballons_cont{
-    display: flex;
+  width: 80px;
+  height: 110px;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 20%, white, transparent);
+  box-shadow: 0 0 5px #333;
 }
 
-
-  .game_over {
-    display: none;
-    position: relative;
-    border: 1px solid black;
-    box-shadow: 1px 1px;
-    padding: 25px;
-    width: 200px;
-    margin: auto;
-    top: 180px;
-    text-align: center;
-    background-color: rgb(237, 237, 237);
+.balloon:before {
+  content: "";
+  position: absolute;
+  bottom: -40px;
+  left: 47%;
+  width: 2px;
+  height: 40px;
+  background-color: black;
+  box-shadow: 0 0 2px #333;
 }
 
-body{
+.ballons_cont {
+  display: flex;
+}
+
+.game_over {
+  display: none;
+  position: relative;
+  border: 1px solid black;
+  box-shadow: 1px 1px;
+  padding: 25px;
+  width: 200px;
+  margin: auto;
+  top: 180px;
+  text-align: center;
+  background-color: rgb(237, 237, 237);
+}
+
+body {
   background-image: url("../assets/sky.png");
-
-  background-repeat: no-repeat; 
-  background-size:cover;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
