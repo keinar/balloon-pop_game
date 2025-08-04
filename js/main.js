@@ -4,6 +4,9 @@ let balloonsPopped = 0;
 let isGameOver = false;
 let intervalMap = new Map();
 
+const MAX_BALLOONS = 12;
+const MAX_LEVEL = 20;
+
 /**
  * Returns a random color from a predefined list.
  */
@@ -13,7 +16,7 @@ function randomColor() {
 }
 
 /**
- * Creates a balloons array with random positions and speed.
+ * Creates a balloons array with random speed.
  * @param {number} num Number of balloons for this level
  */
 function createBalloons(num) {
@@ -21,7 +24,6 @@ function createBalloons(num) {
     for (let i = 0; i < num; i++) {
         gBalloons.push({
             id: i + 1,
-            bottom: Math.floor(Math.random() * 60),
             speed: Math.max(5, 25 - level * 2 + Math.floor(Math.random() * 7)),
             backgroundColor: randomColor()
         });
@@ -35,11 +37,7 @@ function move_up() {
     const balloonContainer = document.querySelector(".ballons_cont");
     balloonContainer.innerHTML = '';
     let containerWidth = balloonContainer.offsetWidth;
-    let containerHeight = balloonContainer.offsetHeight;
-    let balloonWidth = Math.max(
-        parseInt(getComputedStyle(document.documentElement).getPropertyValue('--balloon-min-width') || 50),
-        containerWidth / 18
-    );
+    let balloonSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--balloon-size') || 60);
     let balloonPositions = [];
 
     gBalloons.forEach((balloonConfig, index) => {
@@ -48,15 +46,14 @@ function move_up() {
         balloon.style.backgroundColor = balloonConfig.backgroundColor;
 
         // Calculate safe left position for this balloon
-        let maxLeft = containerWidth - balloonWidth;
+        let maxLeft = containerWidth - balloonSize;
         let leftPos;
         let attempts = 0;
         do {
             leftPos = Math.floor(Math.random() * maxLeft);
             attempts++;
-            // Prevent overlap (basic)
         } while (
-            balloonPositions.some(pos => Math.abs(pos - leftPos) < balloonWidth * 0.85) && attempts < 30
+            balloonPositions.some(pos => Math.abs(pos - leftPos) < balloonSize * 0.85) && attempts < 30
         );
         balloonPositions.push(leftPos);
         balloon.style.left = leftPos + "px";
@@ -67,10 +64,11 @@ function move_up() {
 
         // Support both click and touch events
         balloon.onclick = function () { play_sound(this); }
-        balloon.ontouchstart = function(e) { 
+        balloon.ontouchstart = function (e) { 
             if (e.cancelable) e.preventDefault(); 
             play_sound(this); 
         }
+
         balloonContainer.appendChild(balloon);
 
         let speed = balloonConfig.speed;
@@ -81,20 +79,22 @@ function move_up() {
                 return;
             }
             currentBottom++;
-            // Lose only if balloon is fully above container
-            if (currentBottom > containerHeight - balloon.offsetHeight) {
+            balloon.style.bottom = currentBottom + "px";
+
+            // Use getBoundingClientRect to detect if balloon left the visible top of the container
+            const rect = balloon.getBoundingClientRect();
+            const containerRect = balloonContainer.getBoundingClientRect();
+            if (rect.bottom < containerRect.top + 10) {
                 clearInterval(interval_id);
                 if (!isGameOver) {
                     gameOver('You lose 😭');
                 }
             }
-            balloon.style.bottom = currentBottom + "px";
         }, speed);
 
         intervalMap.set(balloon, interval_id);
     });
 }
-
 
 /**
  * Handles popping a balloon, playing a sound and checking for win/level up.
@@ -103,7 +103,6 @@ function move_up() {
 function play_sound(elBalloon) {
     if (isGameOver || !intervalMap.has(elBalloon)) return;
     const audio = new Audio("assets/pop.mp3");
-    // Try/catch to ignore user gesture errors
     audio.play().catch(e => {});
     elBalloon.style.opacity = "0";
     clearInterval(intervalMap.get(elBalloon));
@@ -115,7 +114,7 @@ function play_sound(elBalloon) {
         if (balloonsPopped === gBalloons.length) {
             setTimeout(() => {
                 level++;
-                if (level <= 20) {
+                if (level <= MAX_LEVEL) {
                     gameOver(`Level ${level - 1} complete! 🎉 Next: Level ${level}`);
                     setTimeout(startLevel, 1400);
                 } else {
@@ -151,7 +150,7 @@ function startLevel() {
     intervalMap = new Map();
     document.querySelector('.game_over').style.display = "none";
     // Cap number of balloons for higher levels for small screens
-    let maxBalloons = Math.min(10, 5 + level * 2);
+    let maxBalloons = Math.min(MAX_BALLOONS, 5 + level * 2);
     createBalloons(maxBalloons);
     move_up();
 }
@@ -178,6 +177,6 @@ document.addEventListener("keydown", function (event) {
 });
 
 function setBalloonSize(level) {
-    let size = Math.max(40, 80 - (level - 1) * 4);
+    let size = Math.max(35, 80 - (level - 1) * 3);
     document.documentElement.style.setProperty('--balloon-size', size + 'px');
 }
