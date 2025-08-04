@@ -1,108 +1,183 @@
-let gBalloons = [
-    {id:1, bottom: 100, speed: 10, backgroundColor: "greenyellow"},
-    {id:2, bottom: 20, speed: 30, backgroundColor: "blue"},
-    {id:3, bottom: 0, speed: 20, backgroundColor: "black"},
-    {id:4, bottom: 50, speed: 10, backgroundColor: "red"},
-    {id:5, bottom: 80, speed: 20, backgroundColor: "green"},
-    {id:6, bottom: 10, speed: 10, backgroundColor: "pink"},
-    {id:7, bottom: 80, speed: 15, backgroundColor: "#F18F01"},
-    {id:8, bottom: 80, speed: 35, backgroundColor: "#92140C"},
-    {id:9, bottom: 80, speed: 5, backgroundColor: "#CACF85"},
-    {id:10, bottom: 80, speed: 35, backgroundColor: "#FEC196"},
-    {id:11, bottom: 80, speed: 25, backgroundColor: "#56445D"},
-    {id:12, bottom: 20, speed: 5, backgroundColor: "blue"}
-];
-
-let intervalIds = [];
+let level = 1;
+let gBalloons = [];
+let balloonsPopped = 0;
+let isGameOver = false;
 let intervalMap = new Map();
-let balloonsPopped = 0;  // Counter for balloons popped
-let isGameOver = false; 
 
+/**
+ * Returns a random color from a predefined list.
+ */
+function randomColor() {
+    const colors = ["greenyellow", "blue", "black", "red", "green", "pink", "#F18F01", "#92140C", "#CACF85", "#FEC196", "#56445D"];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
 
-function move_up(){
+/**
+ * Creates a balloons array with random positions and speed.
+ * @param {number} num Number of balloons for this level
+ */
+function createBalloons(num) {
+    gBalloons = [];
+    for (let i = 0; i < num; i++) {
+        gBalloons.push({
+            id: i + 1,
+            bottom: Math.floor(Math.random() * 60),
+            speed: Math.max(5, 25 - level * 2 + Math.floor(Math.random() * 7)),
+            backgroundColor: randomColor()
+        });
+    }
+}
+
+/**
+ * Renders the balloons and animates their upward movement.
+ */
+function move_up() {
     const balloonContainer = document.querySelector(".ballons_cont");
-    let initialLeft = 50;
+    balloonContainer.innerHTML = '';
+    let containerWidth = balloonContainer.offsetWidth;
+    let containerHeight = balloonContainer.offsetHeight;
+    let balloonWidth = Math.max(
+        parseInt(getComputedStyle(document.documentElement).getPropertyValue('--balloon-min-width') || 50),
+        containerWidth / 18
+    );
+    let balloonPositions = [];
 
     gBalloons.forEach((balloonConfig, index) => {
-        // generate the divs using the data model
         let balloon = document.createElement('div');
-        balloon.className = `balloon balloon${index+1}`;
-        balloon.style.backgroundColor= balloonConfig.backgroundColor;
+        balloon.className = `balloon balloon${index + 1}`;
+        balloon.style.backgroundColor = balloonConfig.backgroundColor;
+
+        // Calculate safe left position for this balloon
+        let maxLeft = containerWidth - balloonWidth;
+        let leftPos;
+        let attempts = 0;
+        do {
+            leftPos = Math.floor(Math.random() * maxLeft);
+            attempts++;
+            // Prevent overlap (basic)
+        } while (
+            balloonPositions.some(pos => Math.abs(pos - leftPos) < balloonWidth * 0.85) && attempts < 30
+        );
+        balloonPositions.push(leftPos);
+        balloon.style.left = leftPos + "px";
+
+        // Always start from bottom 0 for consistency
+        let currentBottom = 0;
+        balloon.style.bottom = currentBottom + "px";
+
+        // Support both click and touch events
+        balloon.onclick = function () { play_sound(this); }
+        balloon.ontouchstart = function(e) { 
+            if (e.cancelable) e.preventDefault(); 
+            play_sound(this); 
+        }
         balloonContainer.appendChild(balloon);
 
-        // play sound by click
-        balloon.onclick = function() {play_sound(this);}
-
-        //  set the margin for balloons
-        balloon.style.left = initialLeft + "px";
-        initialLeft += 100;
-
-        let currentBottom = balloonConfig.bottom;
         let speed = balloonConfig.speed;
 
-        const interval_id = setInterval(()=>{
-        currentBottom++;
+        const interval_id = setInterval(() => {
+            if (isGameOver) {
+                clearInterval(interval_id);
+                return;
+            }
+            currentBottom++;
+            // Lose only if balloon is fully above container
+            if (currentBottom > containerHeight - balloon.offsetHeight) {
+                clearInterval(interval_id);
+                if (!isGameOver) {
+                    gameOver('You lose 😭');
+                }
+            }
+            balloon.style.bottom = currentBottom + "px";
+        }, speed);
 
-        //this is my idea
-        if(currentBottom > 700) {
-            clearInterval(interval_id);
-            gameOver('You lose 😭');
-        }
-
-        balloon.style.bottom = currentBottom + "px";
-        },speed);
-
-        intervalMap.set(balloon, interval_id);  // Associate this balloon with its interval ID
-
+        intervalMap.set(balloon, interval_id);
     });
 }
 
-function play_sound(elBalloon){
+
+/**
+ * Handles popping a balloon, playing a sound and checking for win/level up.
+ * @param {HTMLElement} elBalloon The balloon element that was clicked or touched
+ */
+function play_sound(elBalloon) {
+    if (isGameOver || !intervalMap.has(elBalloon)) return;
     const audio = new Audio("assets/pop.mp3");
-    audio.play();
-    elBalloon.style.transition = "0.3s";
+    // Try/catch to ignore user gesture errors
+    audio.play().catch(e => {});
     elBalloon.style.opacity = "0";
-    
-    // Clear the interval for this balloon immediately when popped
     clearInterval(intervalMap.get(elBalloon));
-    intervalMap.delete(elBalloon);  // Remove the entry from the map
+    intervalMap.delete(elBalloon);
 
     setTimeout(() => {
         elBalloon.remove();
         balloonsPopped++;
-        
         if (balloonsPopped === gBalloons.length) {
-            gameOver('You win! 🏆');
+            setTimeout(() => {
+                level++;
+                if (level <= 20) {
+                    gameOver(`Level ${level - 1} complete! 🎉 Next: Level ${level}`);
+                    setTimeout(startLevel, 1400);
+                } else {
+                    gameOver('You win all levels! 🏆');
+                }
+            }, 200);
         }
-    }, 500);
+    }, 400);
 }
 
+/**
+ * Stops all balloons and shows game over modal.
+ * @param {string} message The message to display
+ */
 function gameOver(message) {
     isGameOver = true;
-    const modalContainer = document.querySelector(".game_over");
-    const gameOverMessage = document.getElementById("game-over-message");
-    gameOverMessage.textContent = message;  // Update the message
-    modalContainer.style.display = "block";
-
-    // Stop all balloon movements
-    intervalIds.forEach(id => {
-        clearInterval(id);
-    });
+    document.querySelector(".game_over").style.display = "block";
+    document.getElementById("game-over-message").textContent = message;
+    intervalMap.forEach(id => clearInterval(id));
+    if (message.includes("You lose")) {
+        level = 1;
+    }
 }
 
-// This function reloads the page
-function reloadPage(){
-    location.reload();
+/**
+ * Starts or restarts the level and hides game over modal.
+ */
+function startLevel() {
+    setBalloonSize(level)
+    balloonsPopped = 0;
+    isGameOver = false;
+    intervalMap.forEach((id) => clearInterval(id));
+    intervalMap = new Map();
+    document.querySelector('.game_over').style.display = "none";
+    // Cap number of balloons for higher levels for small screens
+    let maxBalloons = Math.min(10, 5 + level * 2);
+    createBalloons(maxBalloons);
+    move_up();
 }
 
-// This function handles the button click
-function startOver(){
-    reloadPage();
+/**
+ * Handles pressing the start over button.
+ */
+function startOver() {
+    level = 1;
+    startLevel();
 }
 
-// This function listens for the 'Enter' key press on the entire document
-document.addEventListener("keydown", function(event){
-    if(event.key === "Enter" && isGameOver){
-        reloadPage();
+// Start game on page load
+window.onload = function () {
+    level = 1;
+    startLevel();
+};
+
+// Support pressing Enter key for restart if game is over
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && isGameOver) {
+        startOver();
     }
 });
+
+function setBalloonSize(level) {
+    let size = Math.max(40, 80 - (level - 1) * 4);
+    document.documentElement.style.setProperty('--balloon-size', size + 'px');
+}
